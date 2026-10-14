@@ -83,11 +83,14 @@ class ai_service:
             conversation_history.append({"role": "user", "content": user_input})
             conversation_history.append({"role": "assistant", "content": response_text})
 
-    def download_models(self):
-        print("Enter the Hugging Face URL of the model to download:")
-        new_model = input().strip()
+    def download_models(self, new_model):
         response = requests.post(self.LM_STUDIO_URL + "/models/download", json={"url": new_model})
         return response
+
+    def update_lm_studio_ip(self, ip):
+
+        self.LM_STUDIO_URL = "http://"+ ip + ":1234/v1"
+        return True
 
     def cli_loop(self):
         print("=" * 50)

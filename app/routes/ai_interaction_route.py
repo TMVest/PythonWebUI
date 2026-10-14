@@ -36,4 +36,12 @@ def ai_interaction(ai_service):
         ai_response = ai_service.chat_with_lm_studio(user_message, conversation_history)
         return jsonify({"response": ai_response})
 
+    @bp.route("/lmstudioIP", methods=["POST"])
+    def updateIP():
+        return True
+
+    @bp.route("/downloadmodel", methods=["POST"])
+    def downloadModel():
+        return True
+
     return bp
