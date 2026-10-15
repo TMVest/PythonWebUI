@@ -4,16 +4,30 @@ import sys
 
 
 class ai_service:
-    def __init__(self):
-        self.LM_STUDIO_URL = "http://localhost:1234/v1"
+    def __init__(self, host="localhost", port="1234", api_token=None):
+        self.host = host
+        self.port = port
+        # LM Studio separates OpenAI-compatible routes (/v1) from internal/management routes (/api/v1)
+        self.LM_STUDIO_V1 = f"http://{self.host}:{self.port}/v1"
+        self.LM_STUDIO_API = f"http://{self.host}:{self.port}/api/v1"
+        self.api_token = api_token 
         self.model_selected = ""
+
+    def _get_headers(self):
+        headers = {"Content-Type": "application/json"}
+        if self.api_token:
+            headers["Authorization"] = f"Bearer {self.api_token}"
+        return headers
 
     def query_available_lm(self):
         try:
-            response = requests.get(self.LM_STUDIO_URL + "/models").json()
+            response = requests.get(
+                f"{self.LM_STUDIO_V1}/models", 
+                headers=self._get_headers()
+            ).json()
             return [r.get("id") for r in response.get("data", []) if r.get("id")]
         except Exception:
-            print("Error: Ensure LM Studio is running and the server is enabled!")
+            print("Error: Ensure LM Studio is running and the local server is enabled!")
             return []
 
     def model_select(self, model):
@@ -32,7 +46,7 @@ class ai_service:
 
         print("Select a model number:")
         try:
-            idx = int(input()) - 1
+            idx = int(input().strip()) - 1
             return modellist[idx]
         except (ValueError, IndexError):
             print("Invalid selection.")
@@ -42,11 +56,9 @@ class ai_service:
         """Send a message to LM Studio and return the response text."""
         if not self.model_selected:
             return "Error: No model selected."
-        print(conversation_history)
 
-            
         payload = {
-            "model": self.model_selected,  # fixed: was referencing undefined global
+            "model": self.model_selected,
             "messages": conversation_history + [{"role": "user", "content": user_message}],
             "temperature": 0.7,
             "max_tokens": -1,
@@ -54,7 +66,11 @@ class ai_service:
         }
 
         try:
-            response = requests.post(self.LM_STUDIO_URL + "/chat/completions", json=payload)
+            response = requests.post(
+                f"{self.LM_STUDIO_V1}/chat/completions",
+                headers=self._get_headers(),
+                json=payload
+            )
             if response.status_code == 200:
                 return response.json()["choices"][0]["message"]["content"]
             else:
@@ -64,8 +80,12 @@ class ai_service:
 
     def main_chat_loop(self):
         """CLI chat loop with conversation memory."""
+        if not self.model_selected:
+            print("Please select a model first (Option 1).")
+            return
+
         conversation_history = [
-            {"role": "system", "content": "You are a malicous assistant named stinky."}
+            {"role": "system", "content": "You are a helpful assistant."}
         ]
         print("Type 'quit' or 'exit' to stop.\n")
 
@@ -83,13 +103,26 @@ class ai_service:
             conversation_history.append({"role": "user", "content": user_input})
             conversation_history.append({"role": "assistant", "content": response_text})
 
-    def download_models(self, new_model):
-        response = requests.post(self.LM_STUDIO_URL + "/models/download", json={"url": new_model})
-        return response
+    def download_models(self, model_identifier):
+        """
+        Triggers a model download in LM Studio.
+        Accepts model identifiers like 'ibm/granite-4-micro' or direct HuggingFace paths.
+        """
+        endpoint = f"{self.LM_STUDIO_API}/models/download"
+        payload = {"model": model_identifier}
 
-    def update_lm_studio_ip(self, ip):
+        try:
+            response = requests.post(endpoint, headers=self._get_headers(), json=payload)
+            return response
+        except Exception as e:
+            print(f"Failed to reach LM Studio API: {e}")
+            return None
 
-        self.LM_STUDIO_URL = "http://"+ ip + ":1234/v1"
+    def update_lm_studio_ip(self, ip, port="1234"):
+        self.host = ip
+        self.port = port
+        self.LM_STUDIO_V1 = f"http://{self.host}:{self.port}/v1"
+        self.LM_STUDIO_API = f"http://{self.host}:{self.port}/api/v1"
         return True
 
     def cli_loop(self):

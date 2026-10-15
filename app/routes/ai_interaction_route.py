@@ -42,6 +42,40 @@ def ai_interaction(ai_service):
 
     @bp.route("/downloadmodel", methods=["POST"])
     def downloadModel():
-        return True
+
+        url = request.form.get("model_url")
+        print(str(url))
+
+        # Guard against missing or empty/whitespace-only input
+        if not url or not url.strip():
+            return jsonify({"error": "Missing or empty model_url parameter"}), 400
+
+        try:
+            urlresponse = ai_service.download_models(url.strip())
+
+            # Check status or attribute based on ai_service implementation
+            # (use != for string comparison instead of 'is not')
+            status = (
+                urlresponse.status()
+                if callable(getattr(urlresponse, "status", None))
+                else getattr(urlresponse, "status", None)
+            )
+
+            if status != "failed":
+                # If urlresponse is an object/dataclass, convert to dict before jsonify
+                data = (
+                    urlresponse.__dict__
+                    if hasattr(urlresponse, "__dict__")
+                    else urlresponse
+                )
+                return jsonify(data), 200
+
+            return (
+                jsonify({"error": "Model download failed", "details": str(urlresponse)}),
+                502,
+            )
+
+        except Exception as e:
+            return jsonify({"error": "Internal service error", "details": str(e)}), 500
 
     return bp

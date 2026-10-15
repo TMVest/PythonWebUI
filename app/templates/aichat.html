@@ -234,6 +234,14 @@
       <button id="send-btn" {% if not selected_model %}disabled{% endif %}>Send</button>
     </div>
   {% endif %}
+  </div>
+
+  <div class="model-downloader">
+    <form class="input-row" method="POST" action="/downloadmodel"> 
+      <textarea id="model-downloader" name="model_url" rows="1" placeholder="Insert Model URL"></textarea>
+        <button type="submit">Download</button>
+    </form>
+  </div>
 </div>
 
 <script>
